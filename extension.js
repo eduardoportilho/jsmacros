@@ -1,63 +1,90 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
 const Range = vscode.Range;
+const path = require('path');
+const fs = require('fs');
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 function activate(context) {
-
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('>>', context.extensionPath);
-    console.log('>>', context.storagePath);
-
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('extension.jsmacro', function () {
-        let editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return; // No open text editor
-        }
-
-        executeReplacements(editor);
-        // let selection = editor.selection;
-        // let text = editor.document.getText(selection);
-
-        // Display a message box to the user
-        vscode.window.showInformationMessage('Replacement done!');
-    });
-
+    const macros = loadMacros(context.extensionPath)
+    let disposable = vscode.commands.registerCommand('extension.jsmacro', chooseMacroFunction(macros));
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
 
 // this method is called when your extension is deactivated
-function deactivate() {
-}
+function deactivate() {}
 exports.deactivate = deactivate;
 
+function loadMacros(extensionPath) {
+    const macroPath = path.join(extensionPath, 'macros')
+    const macroFiles = fs.readdirSync(macroPath)
+    const macros = {}
+    macroFiles.forEach(macroFile => {
+        const fullMacroFilePath = path.join(macroPath, macroFile)
+        const extension = path.extname(macroFile)
+        const isFile = fs.statSync(fullMacroFilePath).isFile()
+        if (isFile && extension === '.js') {
+            const name = macroFile.replace(/\.js/, '')
+            const code = fs.readFileSync(fullMacroFilePath, 'utf8');
+            const description = getMacroDescriptionFromCode(code)
+            macros[name] = {
+                name,
+                description,
+                fn: new Function('documentContent', code)
+            }
+        }
+    })
+    return macros
+}
 
-function executeReplacements(editor) {
+function getMacroDescriptionFromCode(code) {
+    const codeLines = code && code.split('\n') || []
+    if (codeLines.length <= 0 )
+        return undefined
+    const firstLine = codeLines[0].trim()
+
+    if (firstLine.indexOf('//') !== 0 && firstLine.indexOf('/*') !== 0)
+        return undefined
+    return firstLine.replace(/\/\/|\/\*|\*\//g, '').trim()
+}
+
+const chooseMacroFunction = (macros) => () => {
+	if (!vscode.window.activeTextEditor) {
+		vscode.window.showInformationMessage('Open a file first to run your macros');
+		return;
+	}      
+	
+	var opts = { 
+        matchOnDescription: true,
+        placeHolder: "Choose a macro to run:"
+    };
+    var items = Object.values(macros).map(macro => ({
+        label: macro.name,
+        description: macro.description
+    }));
+
+	vscode.window.showQuickPick(items, opts).then((selection) => {
+		if (!selection) {
+			return;
+        }
+        const macro = macros[selection.label]
+        let editor = vscode.window.activeTextEditor;
+        executeMacro(editor, macro)
+    });
+}
+
+function executeMacro(editor, macro) {
+    if (!editor) {
+        return; // No open text editor
+    }
     editor.edit(function (edit) {
         const doc = editor.document;
-        const docContent = doc.getText();
-        const newDocContent = docContent
-            .replace(/^.*SDO CTA\/APL AUTOMATICAS.*\n/gm, '')
-            .replace(/\./g, '')
-            .replace(/,/g, '.')
-            .replace(/(\d\d\/\d\d)/g, '$1/2018,')
-            .replace(/(\d+\.\d\d)/g, ',,,,$1')
-            .replace(/(\d+\.\d\d)\s-/g, '-$1')
-            .replace(/2018,\s+D\s+/g, '2018,')
-            .replace(/\s+$/gm, '')
-            .replace(/\s{2,}/g, '')
-
+        const documentContent = doc.getText();
+        const newDocContent = macro.fn(documentContent)
         const start = doc.positionAt(0)
-        const end = doc.positionAt(docContent.length)
+        const end = doc.positionAt(documentContent.length)
         const range = new Range(start, end)
 
         edit.replace(range, newDocContent);
+        vscode.window.showInformationMessage('Replacement done!');
 	});
 }

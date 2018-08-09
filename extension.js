@@ -4,8 +4,8 @@ const path = require('path');
 const fs = require('fs');
 
 function activate(context) {
-    const macros = loadMacros(context.extensionPath)
-    let disposable = vscode.commands.registerCommand('extension.jsmacro', chooseMacroFunction(macros));
+    const macroPath = path.join(context.extensionPath, 'macros')
+    let disposable = vscode.commands.registerCommand('extension.jsmacros', chooseMacroFunction(macroPath));
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
@@ -14,8 +14,7 @@ exports.activate = activate;
 function deactivate() {}
 exports.deactivate = deactivate;
 
-function loadMacros(extensionPath) {
-    const macroPath = path.join(extensionPath, 'macros')
+function loadMacros(macroPath) {
     const macroFiles = fs.readdirSync(macroPath)
     const macros = {}
     macroFiles.forEach(macroFile => {
@@ -47,11 +46,17 @@ function getMacroDescriptionFromCode(code) {
     return firstLine.replace(/\/\/|\/\*|\*\//g, '').trim()
 }
 
-const chooseMacroFunction = (macros) => () => {
+const chooseMacroFunction = (macroPath) => () => {
 	if (!vscode.window.activeTextEditor) {
 		vscode.window.showInformationMessage('Open a file first to run your macros');
 		return;
-	}      
+    }
+    
+    const macros = loadMacros(macroPath)
+    if (Object.keys(macros).length === 0) {
+        vscode.window.showInformationMessage(`You need to add your macros to: ${macroPath}`);
+        return;
+    }
 	
 	var opts = { 
         matchOnDescription: true,

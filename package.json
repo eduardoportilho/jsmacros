@@ -1,7 +1,8 @@
 {
-    "name": "jsmacro",
-    "displayName": "jsmacro",
-    "description": "",
+    "name": "jsmacros",
+    "displayName": "jsmacros",
+    "description": "Run Javascript macros to transform the content of documents in VS Code.",
+    "repository": "https://github.com/eduardoportilho/jsmacros",
     "version": "0.0.1",
     "publisher": "eduardoportilho",
     "engines": {
@@ -11,14 +12,14 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.jsmacro"
+        "onCommand:extension.jsmacros"
     ],
     "main": "./extension",
     "contributes": {
         "commands": [
             {
-                "command": "extension.jsmacro",
-                "title": "JS macro"
+                "command": "extension.jsmacros",
+                "title": "JS macros"
             }
         ]
     },

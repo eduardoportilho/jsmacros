@@ -4,8 +4,8 @@ const path = require('path');
 const fs = require('fs');
 
 function activate(context) {
-    const macroPath = path.join(context.extensionPath, 'macros')
-    let disposable = vscode.commands.registerCommand('extension.jsmacros', chooseMacroFunction(macroPath));
+    const macrosPath = path.join(context.extensionPath, 'macros')
+    let disposable = vscode.commands.registerCommand('extension.jsmacros', chooseMacroFunction(macrosPath));
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
@@ -47,17 +47,17 @@ function getMacroDescriptionFromCode(code) {
 }
 
 const chooseMacroFunction = (macroPath) => () => {
-	if (!vscode.window.activeTextEditor) {
-		vscode.window.showInformationMessage('Open a file first to run your macros');
-		return;
-    }
+	// if (!vscode.window.activeTextEditor) {
+	// 	vscode.window.showInformationMessage('Open a file first to run your macros');
+	// 	return;
+    // }
     
     const macros = loadMacros(macroPath)
-    if (Object.keys(macros).length === 0) {
-        vscode.window.showInformationMessage(`You need to add your macros to: ${macroPath}`);
-        return;
-    }
-	
+    // if (Object.keys(macros).length === 0) {
+    //     vscode.window.showInformationMessage(`You need to add your macros to: ${macroPath}`);
+    //     return;
+    // }
+	var showMacrosDir = 'Open macros folder';
 	var opts = { 
         matchOnDescription: true,
         placeHolder: "Choose a macro to run:"
@@ -65,12 +65,20 @@ const chooseMacroFunction = (macroPath) => () => {
     var items = Object.values(macros).map(macro => ({
         label: macro.name,
         description: macro.description
-    }));
+    })).concat([{
+        label: showMacrosDir,
+        description: 'Open the folder containing the JS macro files'
+    }]);
 
 	vscode.window.showQuickPick(items, opts).then((selection) => {
 		if (!selection) {
 			return;
         }
+        if (selection.label === showMacrosDir) {
+            vscode.window.showInformationMessage(`You need to add your macros to: ${macroPath}`);
+			return;
+        }
+
         const macro = macros[selection.label]
         let editor = vscode.window.activeTextEditor;
         executeMacro(editor, macro)
